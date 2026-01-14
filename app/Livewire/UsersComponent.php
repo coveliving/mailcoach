@@ -3,10 +3,9 @@
 namespace App\Livewire;
 
 use App\Models\User;
-use Closure;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
-use Illuminate\Contracts\Database\Eloquent\Builder;
+use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Mailcoach\Livewire\TableComponent;
 
@@ -45,17 +44,17 @@ class UsersComponent extends TableComponent
         notify(__mc('The user has been deleted.'));
     }
 
-    protected function getTableQuery(): Builder
+    public function table(Table $table): Table
     {
-        return User::query();
+        return parent::table($table)
+            ->query(User::query())
+            ->recordUrl(fn (User $record) => route('users.edit', $record))
+            ->defaultSort('email')
+            ->columns($this->columns())
+            ->recordActions($this->recordActions());
     }
 
-    protected function getDefaultTableSortColumn(): ?string
-    {
-        return 'email';
-    }
-
-    protected function getTableColumns(): array
+    protected function columns(): array
     {
         return [
             TextColumn::make('email')
@@ -70,23 +69,18 @@ class UsersComponent extends TableComponent
         ];
     }
 
-    protected function getTableActions(): array
+    protected function recordActions(): array
     {
         return [
             Action::make('delete')
-                ->icon('heroicon-o-trash')
-                ->color('danger')
+                ->icon('heroicon-s-trash')
                 ->label('')
+                ->color('danger')
                 ->tooltip(__mc('Delete'))
                 ->modalHeading(__mc('Delete'))
                 ->requiresConfirmation()
-                ->hidden(fn (User $user) => $user->id === Auth::user()->id)
-                ->action(fn (User $user) => $this->deleteUser($user)),
+                ->hidden(fn (User $record) => $record->id === Auth::user()->id)
+                ->action(fn (User $record) => $this->deleteUser($record)),
         ];
-    }
-
-    protected function getTableRecordUrlUsing(): ?Closure
-    {
-        return fn (User $user) => route('users.edit', $user);
     }
 }
