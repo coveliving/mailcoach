@@ -24,6 +24,7 @@ Schedule::command('mailcoach:send-email-list-summary-mail')->mondays()->at('9:00
 Schedule::command('mailcoach:delete-old-unconfirmed-subscribers')->daily();
 
 Schedule::command('app:tag-moved-out-tenants')->daily();
+Schedule::command('app:remove-cove-paid-membership')->dailyAt('6:00');
 
 Schedule::command('mailcoach:prune')->dailyAt('3:00');
 
