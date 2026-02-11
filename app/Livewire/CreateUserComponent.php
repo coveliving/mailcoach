@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\User;
+use App\Notifications\QueuedWelcomeNotification;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
@@ -12,7 +13,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
-use Spatie\WelcomeNotification\WelcomeNotification;
 
 class CreateUserComponent extends Component implements HasActions, HasForms
 {
@@ -37,15 +37,9 @@ class CreateUserComponent extends Component implements HasActions, HasForms
         $user->password = Hash::make(Str::random(64));
         $user->save();
 
-        try {
-            $user->sendWelcomeNotification(now()->addDay());
+        $user->notify(new QueuedWelcomeNotification(now()->addDay()));
 
-            notify(__mc('The user has been created. A mail with login instructions has been sent to :email', ['email' => $user->email]));
-
-        } catch (\Throwable $e) {
-            report($e);
-            notifyError(__mc('The user has been created. A mail with setup instructions could not be sent: '.$e->getMessage()));
-        }
+        notify(__mc('The user has been created. A mail with login instructions will be sent to :email', ['email' => $user->email]));
 
         return redirect()->route('users.edit', $user);
     }
