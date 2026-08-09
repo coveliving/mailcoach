@@ -3,7 +3,11 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Spatie\Mailcoach\Domain\Audience\Enums\TagType;
+use Spatie\Mailcoach\Domain\Audience\Models\EmailList;
 use Spatie\Mailcoach\Domain\Audience\Models\Subscriber;
+use Spatie\Mailcoach\Domain\Audience\Models\Tag;
 
 class TagMovedOutTenants extends Command
 {
@@ -24,12 +28,35 @@ class TagMovedOutTenants extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
-        Subscriber::query()
-            ->withExtraAttributes('move_out_date', '!=', null)
-            ->withExtraAttributes('move_out_date', '<', now()->toDateString())
-            ->cursor()
-            ->each(fn (Subscriber $subscriber) => $subscriber->addTag('ex-tenant'));
+        $tagName = 'ex-tenant';
+
+        EmailList::query()->each(function (EmailList $emailList) use ($tagName) {
+            $tag = Tag::query()
+                ->where('email_list_id', $emailList->id)
+                ->named($tagName)
+                ->first()
+                ?? Tag::create([
+                    'name' => $tagName,
+                    'email_list_id' => $emailList->id,
+                    'type' => TagType::Default,
+                ]);
+
+            Subscriber::query()
+                ->where('email_list_id', $emailList->id)
+                ->withExtraAttributes('move_out_date', '!=', null)
+                ->withExtraAttributes('move_out_date', '<', now()->toDateString())
+                ->whereDoesntHave('tags', fn ($query) => $query->where('mailcoach_tags.id', $tag->id))
+                ->select('id')
+                ->chunkById(1000, function ($subscribers) use ($tag) {
+                    DB::table('mailcoach_email_list_subscriber_tags')->insertOrIgnore(
+                        $subscribers->map(fn (Subscriber $subscriber) => [
+                            'subscriber_id' => $subscriber->id,
+                            'tag_id' => $tag->id,
+                        ])->all()
+                    );
+                });
+        });
     }
 }
