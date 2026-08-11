@@ -33,7 +33,7 @@ class TagMovedOutTenants extends Command
                 ->withExtraAttributes('move_out_date', '!=', null)
                 ->withExtraAttributes('move_out_date', '<', now()->toDateString())
                 ->whereDoesntHave('tags', fn ($query) => $query->named('ex-tenant'))
-                ->chunkById(500, fn ($subscribers) => $subscribers->each->addTag('ex-tenant'));
+                ->eachById(fn (Subscriber $subscriber) => $subscriber->addTag('ex-tenant'), 500);
         });
     }
 }
