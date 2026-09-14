@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Spatie\Mailcoach\Domain\Audience\Models\EmailList;
 use Spatie\Mailcoach\Domain\Audience\Models\Subscriber;
+use Spatie\Mailcoach\Domain\Audience\Support\EmailAddressNormalizer;
 
 class SyncCommunityPlusMembersJob implements ShouldQueue
 {
@@ -30,13 +31,26 @@ class SyncCommunityPlusMembersJob implements ShouldQueue
     {
         $emailList = EmailList::firstOrCreate(['name' => self::LIST_NAME]);
 
+        // Emails that had already opted out before this sync ran - never force-resubscribe these.
+        $optedOut = Subscriber::query()
+            ->where('email_list_id', $emailList->id)
+            ->unsubscribed()
+            ->pluck('email')
+            ->all();
+
         Subscriber::query()
             ->where('email_list_id', $emailList->id)
             ->subscribed()
             ->eachById(fn (Subscriber $subscriber) => $subscriber->unsubscribe(), 500);
 
         foreach ($this->subscribers as $subscriber) {
-            $emailList->subscribeSkippingConfirmation($subscriber['email'], [
+            $email = EmailAddressNormalizer::normalize($subscriber['email']);
+
+            if (in_array($email, $optedOut, true)) {
+                continue;
+            }
+
+            $emailList->subscribeSkippingConfirmation($email, [
                 'first_name' => $subscriber['first_name'] ?? null,
                 'last_name' => $subscriber['last_name'] ?? null,
             ]);
