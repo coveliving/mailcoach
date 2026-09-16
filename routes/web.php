@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\WelcomeController;
 use App\Http\Middleware\WelcomesNewUsers;
 use App\Livewire\AccountComponent;
+use App\Livewire\Automations\AutomationActivityLogComponent;
 use App\Livewire\EditUserComponent;
 use App\Livewire\UsersComponent;
 use Illuminate\Support\Facades\Route;
@@ -41,6 +42,12 @@ Route::middleware('auth')->group(function () {
         Route::prefix('users')->group(function () {
             Route::get('/', UsersComponent::class)->name('users');
             Route::get('{user}', EditUserComponent::class)->name('users.edit');
+        });
+    });
+
+    Route::middleware(config('mailcoach.middleware.web'))->group(function () {
+        Route::prefix('automations/{automation}')->name('mailcoach.automations.')->group(function () {
+            Route::get('activity-log', AutomationActivityLogComponent::class)->name('activity-log');
         });
     });
 });
